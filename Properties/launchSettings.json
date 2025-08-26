@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Quizapp_StijnvanDaelen (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Quizapp_StijnvanDaelen (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
