@@ -1,0 +1,46 @@
+[
+  {
+    "QuestionId": 1,
+    "Text": "Wat is de hoofdstad van Nederland?",
+    "CorrectAnswer": "Amsterdam",
+    "Weight": 5,
+    "IsActive": true
+  },
+  {
+    "QuestionId": 2,
+    "Text": "Hoeveel continenten zijn er op aarde?",
+    "CorrectAnswer": "7",
+    "Weight": 3,
+    "IsActive": true
+  },
+  {
+    "QuestionId": 3,
+    "Text": "Welke kleuren zitten in de Nederlandse vlag?",
+    "CorrectAnswer": "Rood, wit, blauw",
+    "Weight": 4,
+    "IsActive": true
+  },
+  {
+    "QuestionId": 4,
+    "Text": "Wat is 5 + 7?",
+    "CorrectAnswer": "12",
+    "Weight": 2,
+    "IsActive": true
+  },
+  {
+    "QuestionId": 5,
+    "Text": "Welke van de volgende dieren is een zoogdier?",
+    "CorrectAnswer": "Dolfijn",
+    "Weight": 5,
+    "IsActive": true,
+    "Options": [ "Krokodil", "Dolfijn", "Haai", "Schildpad" ]
+  },
+  {
+    "QuestionId": 6,
+    "Text": "Welke taal wordt gesproken in Brazilië?",
+    "CorrectAnswer": "Portugees",
+    "Weight": 3,
+    "IsActive": true,
+    "Options": [ "Spaans", "Portugees", "Engels", "Frans" ]
+  }
+]
