@@ -8,8 +8,15 @@
         <!-- STARTSCHERM -->
         <StackPanel x:Name="StartPanel" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock Text="Welkom bij de QuizApp" FontSize="28" FontWeight="Bold" Margin="0,0,0,30" HorizontalAlignment="Center"/>
+
+            <!-- Naam invoeren -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20" Spacing="10">
+                <TextBlock Text="Voer je naam in:" VerticalAlignment="Center"/>
+                <TextBox x:Name="NaamTextBox" Width="200"/>
+            </StackPanel>
+
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-                <Button Content="Leerling" Width="120" Height="50" Click="LeerlingButton_Click"/>
+                <Button Content="Start Quiz" Width="120" Height="50" Click="LeerlingButton_Click"/>
                 <Button Content="Docent" Width="120" Height="50" Click="DocentButton_Click"/>
             </StackPanel>
         </StackPanel>
@@ -25,6 +32,7 @@
             <TextBlock x:Name="ProgressTextBlock" FontSize="16" Margin="0,0,0,10"/>
             <TextBlock x:Name="ScoreTextBlock" FontSize="18" FontWeight="Bold" Margin="0,10,0,10"/>
             <ListBox x:Name="IncorrectQuestionsListBox" Height="150"/>
+            <Button Content="Back" Width="120" Height="50" Click="BackButton_Click"/>
         </StackPanel>
 
         <!-- DOCENT PANEL -->
@@ -48,6 +56,8 @@
             <!-- Resultaten -->
             <TextBlock Text="Resultaten:" FontSize="18" FontWeight="Bold" Margin="0,20,0,10"/>
             <ListBox x:Name="ResultatenListBox" Height="200"/>
+
+            <Button Content="Back" Width="120" Height="50" Click="BackButton_Click"/>
         </StackPanel>
     </Grid>
 </Window>

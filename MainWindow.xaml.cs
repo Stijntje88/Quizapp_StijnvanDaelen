@@ -9,7 +9,6 @@ using System.Text.Json;
 using Quizapp_StijnvanDaelen.Models;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace Quizapp_StijnvanDaelen
 {
     public sealed partial class MainWindow : Window
@@ -36,41 +35,45 @@ namespace Quizapp_StijnvanDaelen
             DocentPanel.Visibility = Visibility.Collapsed;
         }
 
-        private void LeerlingButton_Click(object sender, RoutedEventArgs e)
-{
-    StartPanel.Visibility = Visibility.Collapsed;
-    QuizPanel.Visibility = Visibility.Visible;
+        private async void LeerlingButton_Click(object sender, RoutedEventArgs e)
+        {
+            string leerlingNaam = NaamTextBox.Text.Trim();
 
-    // Nieuwe student
-    _currentStudent = new Student { Name = "Leerling", Email = "leerling@example.com" };
-    EnsureCurrentStudentInDatabase();
+            if (string.IsNullOrWhiteSpace(leerlingNaam))
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Naam verplicht",
+                    Content = "Voer alstublieft een naam in voordat je de quiz start.",
+                    CloseButtonText = "Ok",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await dialog.ShowAsync();
+                return;
+            }
 
-    // Vragen ophalen uit database
-    LoadQuestionsFromDatabase();
+            StartPanel.Visibility = Visibility.Collapsed;
+            QuizPanel.Visibility = Visibility.Visible;
 
-    // Eventueel JSON-bestand ook nog toevoegen
-    string filePath = "vragen.json";
-    LoadQuestionsFromJson(filePath);
+            
 
-    ShuffleQuestions();
-    PrepareQuestionQueue();
-    _totalQuestions = _questionQueue.Count;
-    UpdateProgress();
-    DisplayQuestion();
-}
+            EnsureCurrentStudentInDatabase();
 
-/// <summary>
-/// Laad alle actieve vragen uit de database
-/// </summary>
-private void LoadQuestionsFromDatabase()
-{
-    using var context = new QuizDbContext();
-    var vragen = context.Questions
-                        .Where(q => q.IsActive)
-                        .ToList();
+            LoadQuestionsFromDatabase();
+            LoadQuestionsFromJson("vragen.json");
+            ShuffleQuestions();
+            PrepareQuestionQueue();
+            _totalQuestions = _questionQueue.Count;
+            UpdateProgress();
+            DisplayQuestion();
+        }
 
-    _questions.AddRange(vragen);
-}
+        private void BackButton_Click(object sender, RoutedEventArgs e)
+        {
+            StartPanel.Visibility = Visibility.Visible;
+            DocentPanel.Visibility = Visibility.Collapsed;
+            QuizPanel.Visibility = Visibility.Collapsed;
+        }
 
 
         private void DocentButton_Click(object sender, RoutedEventArgs e)
@@ -84,10 +87,14 @@ private void LoadQuestionsFromDatabase()
         private void EnsureCurrentStudentInDatabase()
         {
             using var context = new QuizDbContext();
-            var existingStudent = context.Students.FirstOrDefault(s => s.Email == _currentStudent.Email);
+
+            // Controleer of de student al bestaat op naam/email
+            var existingStudent = context.Students
+                .FirstOrDefault(s => s.Name == _currentStudent.Name && s.Email == _currentStudent.Email);
+
             if (existingStudent != null)
             {
-                _currentStudent = existingStudent;
+                _currentStudent = existingStudent; // gebruik bestaande student
             }
             else
             {
@@ -124,7 +131,7 @@ private void LoadQuestionsFromDatabase()
         }
         #endregion
 
-        #region JSON Import/Export
+        #region JSON Import
         private void LoadQuestionsFromJson(string filePath)
         {
             if (!File.Exists(filePath)) return;
@@ -137,6 +144,16 @@ private void LoadQuestionsFromDatabase()
         #endregion
 
         #region Quiz Logic
+        private void LoadQuestionsFromDatabase()
+        {
+            using var context = new QuizDbContext();
+            var vragen = context.Questions
+                                .Where(q => q.IsActive)
+                                .ToList();
+
+            _questions.AddRange(vragen);
+        }
+
         private void ShuffleQuestions()
         {
             var random = new Random();
@@ -270,19 +287,14 @@ private void LoadQuestionsFromDatabase()
         {
             try
             {
-                // Maak ListBox leeg
                 ResultatenListBox.Items.Clear();
 
-                // Gebruik je DbContext
                 using var context = new QuizDbContext();
-
-                // Haal scores op, inclusief de Student
                 var scores = context.Scores
-                    .Include(s => s.Student)            // Zorg dat Student geladen wordt
-                    .OrderByDescending(s => s.DateTime) // Meest recente eerst
+                    .Include(s => s.Student)
+                    .OrderByDescending(s => s.DateTime)
                     .ToList();
 
-                // Voeg scores toe aan ListBox
                 if (scores.Count == 0)
                 {
                     ResultatenListBox.Items.Add("Er zijn nog geen resultaten.");
@@ -291,7 +303,6 @@ private void LoadQuestionsFromDatabase()
                 {
                     foreach (var score in scores)
                     {
-                        // Check of Student niet null is
                         var studentName = score.Student?.Name ?? "Onbekende student";
                         ResultatenListBox.Items.Add($"{studentName}: {score.Points} punten ({score.Percentage:0.##}%) op {score.DateTime}");
                     }
@@ -299,7 +310,14 @@ private void LoadQuestionsFromDatabase()
             }
             catch (Exception ex)
             {
-                
+                var dialog = new ContentDialog
+                {
+                    Title = "Fout",
+                    Content = ex.Message,
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                _ = dialog.ShowAsync();
             }
         }
 
@@ -349,12 +367,11 @@ private void LoadQuestionsFromDatabase()
                 Title = "Vraag toegevoegd",
                 Content = "De vraag is succesvol toegevoegd aan de database!",
                 CloseButtonText = "OK",
-                XamlRoot = this.Content.XamlRoot // Dit is belangrijk in WinUI 3
+                XamlRoot = this.Content.XamlRoot
             };
 
             await dialog.ShowAsync();
         }
-
         #endregion
     }
 
