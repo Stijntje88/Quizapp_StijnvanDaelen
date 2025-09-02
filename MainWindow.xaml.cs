@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Quizapp_StijnvanDaelen.Models;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace Quizapp_StijnvanDaelen
 {
@@ -35,40 +37,40 @@ namespace Quizapp_StijnvanDaelen
         }
 
         private void LeerlingButton_Click(object sender, RoutedEventArgs e)
-        {
-            StartPanel.Visibility = Visibility.Collapsed;
-            QuizPanel.Visibility = Visibility.Visible;
+{
+    StartPanel.Visibility = Visibility.Collapsed;
+    QuizPanel.Visibility = Visibility.Visible;
 
-            // Nieuwe student
-            _currentStudent = new Student { Name = "Leerling", Email = "leerling@example.com" };
-            EnsureCurrentStudentInDatabase();
+    // Nieuwe student
+    _currentStudent = new Student { Name = "Leerling", Email = "leerling@example.com" };
+    EnsureCurrentStudentInDatabase();
 
-            // Vragen ophalen uit database
-            LoadQuestionsFromDatabase();
+    // Vragen ophalen uit database
+    LoadQuestionsFromDatabase();
 
-            // Eventueel JSON-bestand ook nog toevoegen
-            string filePath = "vragen.json";
-            LoadQuestionsFromJson(filePath);
+    // Eventueel JSON-bestand ook nog toevoegen
+    string filePath = "vragen.json";
+    LoadQuestionsFromJson(filePath);
 
-            ShuffleQuestions();
-            PrepareQuestionQueue();
-            _totalQuestions = _questionQueue.Count;
-            UpdateProgress();
-            DisplayQuestion();
-        }
+    ShuffleQuestions();
+    PrepareQuestionQueue();
+    _totalQuestions = _questionQueue.Count;
+    UpdateProgress();
+    DisplayQuestion();
+}
 
-        /// <summary>
-        /// Laad alle actieve vragen uit de database
-        /// </summary>
-        private void LoadQuestionsFromDatabase()
-        {
-            using var context = new QuizDbContext();
-            var vragen = context.Questions
-                                .Where(q => q.IsActive)
-                                .ToList();
+/// <summary>
+/// Laad alle actieve vragen uit de database
+/// </summary>
+private void LoadQuestionsFromDatabase()
+{
+    using var context = new QuizDbContext();
+    var vragen = context.Questions
+                        .Where(q => q.IsActive)
+                        .ToList();
 
-            _questions.AddRange(vragen);
-        }
+    _questions.AddRange(vragen);
+}
 
 
         private void DocentButton_Click(object sender, RoutedEventArgs e)
@@ -266,12 +268,38 @@ namespace Quizapp_StijnvanDaelen
 
         private void BekijkResultatenButton_Click(object sender, RoutedEventArgs e)
         {
-            ResultatenListBox.Items.Clear();
-            using var context = new QuizDbContext();
-            var scores = context.Scores.OrderByDescending(s => s.DateTime).ToList();
-            foreach (var score in scores)
+            try
             {
-                ResultatenListBox.Items.Add($"{score.Student.Name}: {score.Points} punten ({score.Percentage:0.##}%) op {score.DateTime}");
+                // Maak ListBox leeg
+                ResultatenListBox.Items.Clear();
+
+                // Gebruik je DbContext
+                using var context = new QuizDbContext();
+
+                // Haal scores op, inclusief de Student
+                var scores = context.Scores
+                    .Include(s => s.Student)            // Zorg dat Student geladen wordt
+                    .OrderByDescending(s => s.DateTime) // Meest recente eerst
+                    .ToList();
+
+                // Voeg scores toe aan ListBox
+                if (scores.Count == 0)
+                {
+                    ResultatenListBox.Items.Add("Er zijn nog geen resultaten.");
+                }
+                else
+                {
+                    foreach (var score in scores)
+                    {
+                        // Check of Student niet null is
+                        var studentName = score.Student?.Name ?? "Onbekende student";
+                        ResultatenListBox.Items.Add($"{studentName}: {score.Points} punten ({score.Percentage:0.##}%) op {score.DateTime}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                
             }
         }
 
