@@ -46,11 +46,7 @@
         <StackPanel x:Name="DocentPanel" Visibility="Collapsed">
             <TextBlock Text="Docent Paneel" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
 
-            <!-- JSON Buttons -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,20" Spacing="10">
-                <Button Content="Upload JSON" Click="UploadJsonButton_Click"/>
-                <Button Content="Bekijk Resultaten" Click="BekijkResultatenButton_Click"/>
-            </StackPanel>
+            
 
             <!-- Handmatige vraag toevoegen -->
             <TextBlock Text="Nieuwe Vraag Toevoegen:" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>

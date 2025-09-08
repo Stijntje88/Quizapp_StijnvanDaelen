@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
@@ -55,7 +55,7 @@ namespace Quizapp_StijnvanDaelen
 
             _questions.Clear();
             LoadQuestionsFromDatabase();
-            LoadQuestionsFromJson("vragen.json");
+            
 
             ShuffleQuestions();
             PrepareQuestionQueue();
@@ -63,7 +63,7 @@ namespace Quizapp_StijnvanDaelen
             _totalQuestions = _questionQueue.Count;
             UpdateProgress();
             DisplayQuestion();
-            //ShowFinalScore();
+           
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
@@ -123,17 +123,8 @@ namespace Quizapp_StijnvanDaelen
         }
         #endregion
 
-        #region JSON Import
-        private void LoadQuestionsFromJson(string filePath)
-        {
-            if (!File.Exists(filePath)) return;
-
-            string jsonString = File.ReadAllText(filePath);
-            var vragen = JsonSerializer.Deserialize<List<Question>>(jsonString);
-            if (vragen != null)
-                _questions.AddRange(vragen);
-        }
-        #endregion
+        
+        
 
         #region Quiz Logic
         private void LoadQuestionsFromDatabase()
@@ -181,6 +172,8 @@ namespace Quizapp_StijnvanDaelen
             AnswerTextBox.Text = "";
         }
 
+        private HashSet<int> _alreadyFailedQuestions = new(); // <-- Toegevoegd
+
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)
         {
             if (_questionQueue.Count == 0) return;
@@ -203,18 +196,28 @@ namespace Quizapp_StijnvanDaelen
             {
                 FeedbackTextBlock.Text = "Correct!";
                 FeedbackTextBlock.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Green);
-                _scorePoints += question.Weight;
+
+                // ✅ Alleen punten geven als deze vraag niet eerder fout is gegaan
+                if (!_alreadyFailedQuestions.Contains(question.QuestionId))
+                {
+                    _scorePoints += question.Weight;
+                }
             }
             else
             {
                 FeedbackTextBlock.Text = $"Fout! Correct antwoord: {question.CorrectAnswer}";
                 FeedbackTextBlock.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Red);
+
+                // Markeer deze vraag als "fout beantwoord"
+                _alreadyFailedQuestions.Add(question.QuestionId);
+
                 _incorrectQuestions.Add(question);
             }
 
             UpdateProgress();
             DisplayQuestion();
         }
+
 
         private void UpdateProgress()
         {
@@ -245,11 +248,11 @@ namespace Quizapp_StijnvanDaelen
             _questions.Clear();
             _questionQueue.Clear();
             _incorrectQuestions.Clear();
+            _alreadyFailedQuestions.Clear(); // ✅ resetten
 
             _scorePoints = 0;
             _totalQuestions = 0;
 
-            // Reset UI
             ProgressBar.Value = 0;
             ProgressTextBlock.Text = "Voortgang: 0 van 0 vragen (0%)";
 
@@ -262,12 +265,9 @@ namespace Quizapp_StijnvanDaelen
         }
 
 
+
         #region Docent Events
-        private void UploadJsonButton_Click(object sender, RoutedEventArgs e)
-        {
-            LoadQuestionsFromJson("vragen.json");
-            PrepareQuestionQueue();
-        }
+       
 
         private void BekijkResultatenButton_Click(object sender, RoutedEventArgs e)
         {
