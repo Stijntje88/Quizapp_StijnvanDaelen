@@ -13,9 +13,9 @@ namespace Quizapp_StijnvanDaelen
 {
     public sealed partial class MainWindow : Window
     {
-        private List<Question> _questions = new List<Question>();
-        private Queue<Question> _questionQueue = new Queue<Question>();
-        private List<Question> _incorrectQuestions = new List<Question>();
+        private List<Question> _questions = new();
+        private Queue<Question> _questionQueue = new();
+        private List<Question> _incorrectQuestions = new();
         private int _scorePoints = 0;
         private int _totalQuestions = 0;
 
@@ -38,41 +38,38 @@ namespace Quizapp_StijnvanDaelen
         private async void LeerlingButton_Click(object sender, RoutedEventArgs e)
         {
             string leerlingNaam = NaamTextBox.Text.Trim();
+            string leerlingEmail = EmailTextBox.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(leerlingNaam))
+            if (string.IsNullOrWhiteSpace(leerlingNaam) || string.IsNullOrWhiteSpace(leerlingEmail))
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "Naam verplicht",
-                    Content = "Voer alstublieft een naam in voordat je de quiz start.",
-                    CloseButtonText = "Ok",
-                    XamlRoot = this.Content.XamlRoot
-                };
-                await dialog.ShowAsync();
+                await ShowDialogAsync("Naam en e-mail verplicht",
+                    "Voer alstublieft zowel je naam als e-mail in voordat je de quiz start.");
                 return;
             }
 
             StartPanel.Visibility = Visibility.Collapsed;
             QuizPanel.Visibility = Visibility.Visible;
 
-            
-
+            _currentStudent = new Student { Name = leerlingNaam, Email = leerlingEmail };
             EnsureCurrentStudentInDatabase();
 
+            _questions.Clear();
             LoadQuestionsFromDatabase();
             LoadQuestionsFromJson("vragen.json");
+
             ShuffleQuestions();
             PrepareQuestionQueue();
+
             _totalQuestions = _questionQueue.Count;
             UpdateProgress();
             DisplayQuestion();
+            //ShowFinalScore();
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            StartPanel.Visibility = Visibility.Visible;
-            DocentPanel.Visibility = Visibility.Collapsed;
-            QuizPanel.Visibility = Visibility.Collapsed;
+            ResetQuiz();
+            ShowStartScreen();
         }
 
 
@@ -88,14 +85,11 @@ namespace Quizapp_StijnvanDaelen
         {
             using var context = new QuizDbContext();
 
-            // Controleer of de student al bestaat op naam/email
             var existingStudent = context.Students
                 .FirstOrDefault(s => s.Name == _currentStudent.Name && s.Email == _currentStudent.Email);
 
             if (existingStudent != null)
-            {
-                _currentStudent = existingStudent; // gebruik bestaande student
-            }
+                _currentStudent = existingStudent;
             else
             {
                 context.Students.Add(_currentStudent);
@@ -117,16 +111,14 @@ namespace Quizapp_StijnvanDaelen
             double totalWeight = _questions.Sum(q => q.Weight);
             double percentage = totalWeight > 0 ? (_scorePoints / totalWeight) * 100 : 0;
 
-            var score = new Score
+            using var context = new QuizDbContext();
+            context.Scores.Add(new Score
             {
                 StudentId = _currentStudent.StudentId,
                 Points = _scorePoints,
                 Percentage = percentage,
                 DateTime = DateTime.Now
-            };
-
-            using var context = new QuizDbContext();
-            context.Scores.Add(score);
+            });
             context.SaveChanges();
         }
         #endregion
@@ -136,7 +128,7 @@ namespace Quizapp_StijnvanDaelen
         {
             if (!File.Exists(filePath)) return;
 
-            var jsonString = File.ReadAllText(filePath);
+            string jsonString = File.ReadAllText(filePath);
             var vragen = JsonSerializer.Deserialize<List<Question>>(jsonString);
             if (vragen != null)
                 _questions.AddRange(vragen);
@@ -147,16 +139,12 @@ namespace Quizapp_StijnvanDaelen
         private void LoadQuestionsFromDatabase()
         {
             using var context = new QuizDbContext();
-            var vragen = context.Questions
-                                .Where(q => q.IsActive)
-                                .ToList();
-
-            _questions.AddRange(vragen);
+            _questions.AddRange(context.Questions.Where(q => q.IsActive).ToList());
         }
 
         private void ShuffleQuestions()
         {
-            var random = new Random();
+            Random random = new();
             _questions = _questions.OrderBy(q => random.Next()).ToList();
         }
 
@@ -191,22 +179,6 @@ namespace Quizapp_StijnvanDaelen
 
             AnswerTextBox.Visibility = Visibility.Visible;
             AnswerTextBox.Text = "";
-            MultipleChoicePanel.Children.Clear();
-
-            if (question is MultipleChoiceQuestion mcq)
-            {
-                AnswerTextBox.Visibility = Visibility.Collapsed;
-                foreach (var option in mcq.Options)
-                {
-                    var btn = new RadioButton
-                    {
-                        Content = option,
-                        GroupName = "Options",
-                        Margin = new Thickness(5)
-                    };
-                    MultipleChoicePanel.Children.Add(btn);
-                }
-            }
         }
 
         private void ConfirmButton_Click(object sender, RoutedEventArgs e)
@@ -214,21 +186,18 @@ namespace Quizapp_StijnvanDaelen
             if (_questionQueue.Count == 0) return;
 
             var question = _questionQueue.Dequeue();
-            string givenAnswer = AnswerTextBox.Visibility == Visibility.Visible ?
-                                 AnswerTextBox.Text.Trim() :
-                                 MultipleChoicePanel.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Content.ToString() ?? "";
+            string givenAnswer = AnswerTextBox.Text.Trim();
 
             bool isCorrect = string.Equals(givenAnswer, question.CorrectAnswer, StringComparison.OrdinalIgnoreCase);
 
-            var answer = new Answer
+            SaveAnswer(new Answer
             {
                 QuestionId = question.QuestionId,
                 StudentId = _currentStudent.StudentId,
                 GivenAnswer = givenAnswer,
                 IsCorrect = isCorrect,
                 DateTime = DateTime.Now
-            };
-            SaveAnswer(answer);
+            });
 
             if (isCorrect)
             {
@@ -265,21 +234,38 @@ namespace Quizapp_StijnvanDaelen
 
             IncorrectQuestionsListBox.Items.Clear();
             foreach (var q in _incorrectQuestions)
-            {
                 IncorrectQuestionsListBox.Items.Add($"{q.Text} - Correct: {q.CorrectAnswer}");
-            }
 
             AnswerTextBox.Visibility = Visibility.Collapsed;
             ConfirmButton.Visibility = Visibility.Collapsed;
-            MultipleChoicePanel.Children.Clear();
         }
         #endregion
+        private void ResetQuiz()
+        {
+            _questions.Clear();
+            _questionQueue.Clear();
+            _incorrectQuestions.Clear();
+
+            _scorePoints = 0;
+            _totalQuestions = 0;
+
+            // Reset UI
+            ProgressBar.Value = 0;
+            ProgressTextBlock.Text = "Voortgang: 0 van 0 vragen (0%)";
+
+            ScoreTextBlock.Text = "";
+            AnswerTextBox.Text = "";
+            AnswerTextBox.Visibility = Visibility.Visible;
+            ConfirmButton.Visibility = Visibility.Visible;
+            FeedbackTextBlock.Text = "";
+            IncorrectQuestionsListBox.Items.Clear();
+        }
+
 
         #region Docent Events
         private void UploadJsonButton_Click(object sender, RoutedEventArgs e)
         {
-            string filePath = "vragen.json";
-            LoadQuestionsFromJson(filePath);
+            LoadQuestionsFromJson("vragen.json");
             PrepareQuestionQueue();
         }
 
@@ -288,36 +274,26 @@ namespace Quizapp_StijnvanDaelen
             try
             {
                 ResultatenListBox.Items.Clear();
-
                 using var context = new QuizDbContext();
-                var scores = context.Scores
-                    .Include(s => s.Student)
-                    .OrderByDescending(s => s.DateTime)
-                    .ToList();
+
+                var scores = context.Scores.Include(s => s.Student)
+                                           .OrderByDescending(s => s.DateTime)
+                                           .ToList();
 
                 if (scores.Count == 0)
-                {
                     ResultatenListBox.Items.Add("Er zijn nog geen resultaten.");
-                }
                 else
                 {
                     foreach (var score in scores)
                     {
-                        var studentName = score.Student?.Name ?? "Onbekende student";
-                        ResultatenListBox.Items.Add($"{studentName}: {score.Points} punten ({score.Percentage:0.##}%) op {score.DateTime}");
+                        string studentName = score.Student?.Name ?? "Onbekende student";
+                        ResultatenListBox.Items.Add($"{studentName}: {score.Points} punten ({score.Percentage:0.##}%) op {score.DateTime:g}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "Fout",
-                    Content = ex.Message,
-                    CloseButtonText = "OK",
-                    XamlRoot = this.Content.XamlRoot
-                };
-                _ = dialog.ShowAsync();
+                _ = ShowDialogAsync("Fout", ex.Message);
             }
         }
 
@@ -326,30 +302,20 @@ namespace Quizapp_StijnvanDaelen
             string vraagText = VraagTextBox.Text.Trim();
             string correctAnswer = CorrectAnswerTextBox.Text.Trim();
             int weight = int.TryParse(WeightTextBox.Text, out var w) ? w : 1;
-            string[] options = OptionsTextBox.Text.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-            Question newQuestion;
-            if (options.Length > 0)
+            if (string.IsNullOrWhiteSpace(vraagText) || string.IsNullOrWhiteSpace(correctAnswer))
             {
-                newQuestion = new MultipleChoiceQuestion
-                {
-                    Text = vraagText,
-                    CorrectAnswer = correctAnswer,
-                    Weight = weight,
-                    Options = options.Select(o => o.Trim()).ToList(),
-                    IsActive = true
-                };
+                await ShowDialogAsync("Fout", "Vul zowel een vraag als een correct antwoord in.");
+                return;
             }
-            else
+
+            var newQuestion = new Question
             {
-                newQuestion = new Question
-                {
-                    Text = vraagText,
-                    CorrectAnswer = correctAnswer,
-                    Weight = weight,
-                    IsActive = true
-                };
-            }
+                Text = vraagText,
+                CorrectAnswer = correctAnswer,
+                Weight = weight,
+                IsActive = true
+            };
 
             using var context = new QuizDbContext();
             context.Questions.Add(newQuestion);
@@ -360,23 +326,23 @@ namespace Quizapp_StijnvanDaelen
             VraagTextBox.Text = "";
             CorrectAnswerTextBox.Text = "";
             WeightTextBox.Text = "";
-            OptionsTextBox.Text = "";
 
+            await ShowDialogAsync("Vraag toegevoegd", "De vraag is succesvol toegevoegd aan de database!");
+        }
+        #endregion
+
+        #region Helpers
+        private async System.Threading.Tasks.Task ShowDialogAsync(string title, string content)
+        {
             var dialog = new ContentDialog
             {
-                Title = "Vraag toegevoegd",
-                Content = "De vraag is succesvol toegevoegd aan de database!",
+                Title = title,
+                Content = content,
                 CloseButtonText = "OK",
                 XamlRoot = this.Content.XamlRoot
             };
-
             await dialog.ShowAsync();
         }
         #endregion
-    }
-
-    public class MultipleChoiceQuestion : Question
-    {
-        public List<string> Options { get; set; } = new List<string>();
     }
 }
